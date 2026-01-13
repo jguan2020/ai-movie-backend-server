@@ -33,7 +33,7 @@ TIER_ONE_STRIPE_ID = os.getenv("TIER_ONE_STRIPE_ID", "")
 STRIPE_RETURN_URL = os.getenv("STRIPE_RETURN_URL", "")
 JWT_SECRET = os.getenv("JWT_SECRET", "")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "text-embedding-3-small")
-CANONICAL_PATH = os.getenv("CANONICAL_PATH", str(BASE_DIR.parent / "canonical_top_k1000.txt"))
+CANONICAL_TABLE = os.getenv("CANONICAL_TABLE", "top1000")
 IMG_BASE = "https://image.tmdb.org/t/p/w342"
 JWT_TTL_SECONDS = int(os.getenv("JWT_TTL_SECONDS", "604800"))
 FREE_FAVORITES_LIMIT = 10
@@ -770,18 +770,15 @@ def get_embedder():
 def load_canonical_tags() -> List[str]:
     tags: List[str] = []
     try:
-        with open(CANONICAL_PATH, "r", encoding="utf-8") as f:
-            for line in f:
-                if not line.strip():
-                    continue
-                if "\t" in line:
-                    tag = line.split("\t", 1)[0].strip()
-                else:
-                    tag = line.strip()
-                if tag:
-                    tags.append(tag)
-    except FileNotFoundError as exc:
-        raise RuntimeError("Canonical tag file not found.") from exc
+        with get_conn() as conn, conn.cursor() as cur:
+            cur.execute(f"SELECT tag FROM {CANONICAL_TABLE} ORDER BY tag;")
+            rows = cur.fetchall()
+    except Exception as exc:
+        raise RuntimeError("Canonical tag table not available.") from exc
+    for row in rows:
+        tag = row[0]
+        if tag:
+            tags.append(tag)
     return tags
 
 

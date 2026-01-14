@@ -929,7 +929,9 @@ def search(payload: SearchRequest, authorization: Optional[str] = Header(None)):
     user = get_optional_user(authorization)
     is_premium = get_user_is_premium(user) if user else False
     results_limit = 50 if is_premium else 10
-    chosen_tags = map_query_to_tags(payload.overview_query or "")
+    raw_query = payload.overview_query or ""
+    print(raw_query)
+    chosen_tags = map_query_to_tags(raw_query)
     language = payload.language or "Any"
     try:
         rows = fetch_movies(language if language != "Any" else None, chosen_tags, limit=results_limit)

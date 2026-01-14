@@ -22,7 +22,7 @@ from pydantic import BaseModel
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=BASE_DIR.parent.parent / ".env")
-logger = logging.getLogger("movie_backend")
+logger = logging.getLogger("uvicorn.error")
 logger.setLevel(logging.INFO)
 
 MOVIE_DATABASE_URL = os.getenv("MOVIE_DATABASE_URL")

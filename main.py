@@ -2,7 +2,6 @@ import base64
 import hashlib
 import hmac
 import json
-import logging
 import os
 import secrets
 import time
@@ -22,13 +21,13 @@ from pydantic import BaseModel
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=BASE_DIR.parent.parent / ".env")
-logger = logging.getLogger("uvicorn.error")
-logger.setLevel(logging.INFO)
 
 MOVIE_DATABASE_URL = os.getenv("MOVIE_DATABASE_URL")
 USER_DATABASE_URL = os.getenv("USER_DATABASE_URL")
 FAVORITES_DATABASE_URL = os.getenv("FAVORITES_DATABASE_URL")
 IS_PREMIUM_DATABASE_URL = os.getenv("IS_PREMIUM_DATABASE_URL")
+CANONICAL_DATABASE_URL = os.getenv("CANONICAL_DATABASE_URL", "")
+SEARCH_LOG_DATABASE_URL = os.getenv("SEARCH_LOG_DATABASE_URL", "")
 LLM_API_KEY = os.getenv("LLM_API_KEY")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
@@ -431,6 +430,22 @@ def get_premium_conn():
     return psycopg2.connect(IS_PREMIUM_DATABASE_URL, sslmode="require")
 
 
+def get_canonical_conn():
+    if not CANONICAL_DATABASE_URL:
+        raise RuntimeError("Canonical database is not configured.")
+    return psycopg2.connect(CANONICAL_DATABASE_URL, sslmode="require")
+
+
+def log_search_query(raw_query: str) -> None:
+    if not SEARCH_LOG_DATABASE_URL or not raw_query.strip():
+        return
+    try:
+        with psycopg2.connect(SEARCH_LOG_DATABASE_URL, sslmode="require") as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO search_queries (keywords) VALUES (%s);", (raw_query,))
+    except Exception:
+        return
+
+
 def normalize_email(email: str) -> str:
     return email.strip().lower()
 
@@ -773,7 +788,7 @@ def get_embedder():
 def load_canonical_tags() -> List[str]:
     tags: List[str] = []
     try:
-        with get_conn() as conn, conn.cursor() as cur:
+        with get_canonical_conn() as conn, conn.cursor() as cur:
             cur.execute(f"SELECT tag FROM {CANONICAL_TABLE} ORDER BY tag;")
             rows = cur.fetchall()
     except Exception as exc:
@@ -933,7 +948,7 @@ def search(payload: SearchRequest, authorization: Optional[str] = Header(None)):
     is_premium = get_user_is_premium(user) if user else False
     results_limit = 50 if is_premium else 10
     raw_query = payload.overview_query or ""
-    logger.info("search_query=%s", raw_query)
+    log_search_query(raw_query)
     chosen_tags = map_query_to_tags(raw_query)
     language = payload.language or "Any"
     try:

@@ -32,7 +32,7 @@ MOVIE_DATABASE_URL = os.getenv("MOVIE_DATABASE_URL")
 USER_DATABASE_URL = os.getenv("USER_DATABASE_URL")
 FAVORITES_DATABASE_URL = os.getenv("FAVORITES_DATABASE_URL")
 IS_PREMIUM_DATABASE_URL = os.getenv("IS_PREMIUM_DATABASE_URL")
-CANONICAL_DATABASE_URL = os.getenv("CANONICAL_DATABASE_URL", "")
+TOP1000_DATABASE_URL = os.getenv("TOP1000_DATABASE_URL", "")
 LLM_API_KEY = os.getenv("LLM_API_KEY")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
@@ -40,7 +40,6 @@ TIER_ONE_STRIPE_ID = os.getenv("TIER_ONE_STRIPE_ID", "")
 STRIPE_RETURN_URL = os.getenv("STRIPE_RETURN_URL", "")
 JWT_SECRET = os.getenv("JWT_SECRET", "")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "text-embedding-3-small")
-CANONICAL_TABLE = os.getenv("CANONICAL_TABLE", "top1000")
 IMG_BASE = "https://image.tmdb.org/t/p/w342"
 JWT_TTL_SECONDS = int(os.getenv("JWT_TTL_SECONDS", "604800"))
 FREE_FAVORITES_LIMIT = 10
@@ -436,9 +435,9 @@ def get_premium_conn():
 
 
 def get_canonical_conn():
-    if not CANONICAL_DATABASE_URL:
-        raise RuntimeError("Canonical database is not configured.")
-    return psycopg2.connect(CANONICAL_DATABASE_URL, sslmode="require")
+    if not TOP1000_DATABASE_URL:
+        raise RuntimeError("Top1000 database is not configured.")
+    return psycopg2.connect(TOP1000_DATABASE_URL, sslmode="require")
 
 
 def normalize_email(email: str) -> str:
@@ -784,7 +783,7 @@ def load_canonical_tags() -> List[str]:
     tags: List[str] = []
     try:
         with get_canonical_conn() as conn, conn.cursor() as cur:
-            cur.execute(f"SELECT tag FROM {CANONICAL_TABLE} ORDER BY tag;")
+            cur.execute("SELECT tag FROM top1000 ORDER BY tag;")
             rows = cur.fetchall()
     except Exception as exc:
         raise RuntimeError("Canonical tag table not available.") from exc

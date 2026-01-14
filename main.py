@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import os
 import secrets
 import time
@@ -21,6 +22,8 @@ from pydantic import BaseModel
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=BASE_DIR.parent.parent / ".env")
+logger = logging.getLogger("movie_backend")
+logger.setLevel(logging.INFO)
 
 MOVIE_DATABASE_URL = os.getenv("MOVIE_DATABASE_URL")
 USER_DATABASE_URL = os.getenv("USER_DATABASE_URL")
@@ -930,7 +933,7 @@ def search(payload: SearchRequest, authorization: Optional[str] = Header(None)):
     is_premium = get_user_is_premium(user) if user else False
     results_limit = 50 if is_premium else 10
     raw_query = payload.overview_query or ""
-    print(raw_query)
+    logger.info("search_query=%s", raw_query)
     chosen_tags = map_query_to_tags(raw_query)
     language = payload.language or "Any"
     try:
